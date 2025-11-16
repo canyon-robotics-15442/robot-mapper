@@ -46,3 +46,22 @@ table {
 	border-collapse: collapse;
 	border-spacing: 0;
 }
+
+main {
+    display: flex;
+    flex-direction: row;
+}
+
+#field {
+    position: relative;
+    height: 1000px;
+    width: 1000px;
+    background-image: url(./v5rc-pushback.png);    
+    background-size: cover;
+}
+
+#field .circle {
+    position: absolute;
+    background: #ff0000;
+    border-radius: 50%;
+}
