@@ -3,11 +3,33 @@ const debugXField = document.getElementById('debug-x-field');
 const debugYField = document.getElementById('debug-y-field');
 const debugXOriginal = document.getElementById('debug-x-original');
 const debugYOriginal = document.getElementById('debug-y-original');
+const program = document.getElementById('program');
 const translateCoordinates = createTranslate(field);
-
+const path = [
+    [-55, 16.5],
+    [-44, 46.5],
+    [-72, 48.2],
+    [-46.5, 48.2],
+    [-46.5, 60],
+    [46, 62],
+    [50, 48],
+    [32, 48],
+    [24, 48],
+    [40, 48],
+    [72, 48.4],
+    [48, 48.4],
+    [32, 48],
+    [24, 48],
+    [38, 48],
+    [38, -46],
+    [72, -47.3],
+    [45, -47.3],
+    [46.5, -60],
+    [-46, -62],
+];
 field.addEventListener('mousemove', (e) => {
-    const { x, y } = translateCoordinates.toFieldCoords(e.clientX, e.clientY)
-    const { x: ogX, y: ogY } = translateCoordinates.fromFieldCoords(parseFloat(x), parseFloat(y));
+    const [ x, y ] = translateCoordinates.toFieldCoords(e.clientX, e.clientY)
+    const [ ogX, ogY ] = translateCoordinates.fromFieldCoords(parseFloat(x), parseFloat(y));
     debugXField.textContent = x;
     debugYField.textContent = y;
     debugXOriginal.textContent = ogX;
@@ -15,31 +37,9 @@ field.addEventListener('mousemove', (e) => {
 })
 
 document.addEventListener('DOMContentLoaded', async () => {
-    const path = [
-        [-55, 16.5],
-        [-44, 46.5],
-        [-72, 48.2],
-        [-46.5, 48.2],
-        [-46.5, 60],
-        [46, 62],
-        [50, 48],
-        [32, 48],
-        [24, 48],
-        [40, 48],
-        [72, 48.4],
-        [48, 48.4],
-        [32, 48],
-        [24, 48],
-        [38, 48],
-        [38, -46],
-        [72, -47.3],
-        [45, -47.3],
-        [46.5, -60],
-        [-46, -62],
-    ]
-
     for (const [x, y] of path) {
         drawCircle(field, ...translateCoordinates.fromFieldCoords(x, y));
+        program.innerHTML=program.innerHTML + '<br>' + `chassis.moveToPoint(${y}, ${x})`;
         await wait();
     }
 })
@@ -52,13 +52,16 @@ function drawCircle(parent, x, y, radius = 30) {
     const fragment = document.createDocumentFragment();
     const circle = document.createElement('div');
     circle.classList.add('circle');
+    circle.classList.add('new');
     circle.style.width = `${radius}px`;
     circle.style.height = `${radius}px`;
     circle.style.left = `${x}px`;
     circle.style.top = `${y}px`;
     fragment.appendChild(circle);
     parent.append(fragment);
-    console.log(circle)
+    setTimeout(() => {
+        circle.classList.remove('new');
+    }, 1000)
     return circle;
 }
 
