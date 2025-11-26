@@ -1,45 +1,56 @@
-const field = document.getElementById('field');
-const debugXField = document.getElementById('debug-x-field');
-const debugYField = document.getElementById('debug-y-field');
-const debugXOriginal = document.getElementById('debug-x-original');
-const debugYOriginal = document.getElementById('debug-y-original');
-const program = document.getElementById('program');
+// @ts-check
+
+/**
+ * @typedef {object} Point
+ * @property {number} x
+ * @property {number} y
+ * @property {number} timeout
+ * @property {number} [maxSpeed]
+ * @property {boolean} [forwards]
+ */
+const field = /** @type {HTMLElement} */ (document.getElementById('field'));
+const debugXField = /** @type {HTMLElement} */ (document.getElementById('debug-x-field'));
+const debugYField = /** @type {HTMLElement} */ (document.getElementById('debug-y-field'));
+const debugXOriginal = /** @type {HTMLElement} */ (document.getElementById('debug-x-original'));
+const debugYOriginal = /** @type {HTMLElement} */ (document.getElementById('debug-y-original'));
+const program = /** @type {HTMLElement} */ (document.getElementById('program'));
 const translateCoordinates = createTranslate(field);
 const RADIUS = 30;
+/** @type {Point[]} */
 const path = [
-    [-55, 16.5],
-    [-44, 46.5],
-    [-72, 48.2],
-    [-46.5, 48.2],
-    [-46.5, 60],
-    [46, 62],
-    [50, 48],
-    [32, 48],
-    [24, 48],
-    [40, 48],
-    [72, 48.4],
-    [48, 48.4],
-    [32, 48],
-    [24, 48],
-    [38, 48],
-    [38, -46],
-    [72, -47.3],
-    [45, -47.3],
-    [46.5, -60],
-    [-46, -62],
+    { x: -55, y: 16.5, timeout: 1000 },
+    { x: -44, y: 46.5, timeout: 1000 },
+    { x: -72, y: 48.2, timeout: 1000 },
+    { x: -46.5, y: 48.2, timeout: 1000 },
+    { x: -46.5, y: 60, timeout: 1000 },
+    { x: 46, y: 62, timeout: 1000 },
+    { x: 50, y: 48, timeout: 1000 },
+    { x: 32, y: 48, timeout: 1000 },
+    { x: 24, y: 48, timeout: 1000 },
+    { x: 40, y: 48, timeout: 1000 },
+    { x: 72, y: 48.4, timeout: 1000 },
+    { x: 48, y: 48.4, timeout: 1000 },
+    { x: 32, y: 48, timeout: 1000 },
+    { x: 24, y: 48, timeout: 1000 },
+    { x: 38, y: 48, timeout: 1000 },
+    { x: 38, y: -46, timeout: 1000 },
+    { x: 72, y: -47.3, timeout: 1000 },
+    { x: 45, y: -47.3, timeout: 1000 },
+    { x: 46.5, y: -60, timeout: 1000 },
+    { x: -46, y: -62, timeout: 1000 },
 ];
 field.addEventListener('mousemove', (e) => {
     const [ x, y ] = translateCoordinates.toFieldCoords(e.clientX, e.clientY)
     const [ ogX, ogY ] = translateCoordinates.fromFieldCoords(parseFloat(x), parseFloat(y));
     debugXField.textContent = x;
     debugYField.textContent = y;
-    debugXOriginal.textContent = ogX;
-    debugYOriginal.textContent = ogY;
+    debugXOriginal.textContent = `${ogX}`;
+    debugYOriginal.textContent = `${ogY}`;
 })
 
 document.addEventListener('DOMContentLoaded', async () => {
     updateCode(path);
-    for (const [x, y] of path) {
+    for (const {x, y} of path) {
         drawCircle(field, ...translateCoordinates.fromFieldCoords(x, y));
         await wait();
     }
@@ -50,15 +61,18 @@ field.addEventListener('click', function(e) {
     const y = e.clientY - (RADIUS / 2);
     const [fieldX, fieldY] = translateCoordinates.toFieldCoords(x, y);
     
-    path.push([fieldX, fieldY]);
+    path.push({x: parseFloat(fieldX), y: parseFloat(fieldY), timeout: 1000});
     drawCircle(field, x, y);
     updateCode(path);
 });
 
+/**
+ * @param {Point[]} path 
+ */
 function updateCode(path) {
     program.innerHTML = '';
-    for (let [x, y] of path) {
-        program.innerHTML = program.innerHTML + '<br>' + `chassis.moveToPoint(${y}, ${x})`;
+    for (let {x, y, timeout} of path) {
+        program.innerHTML = program.innerHTML + '<br>' + `chassis.moveToPoint(${y}, ${x}, ${timeout});`;
     }
 }
 
@@ -66,6 +80,14 @@ async function wait(n = 1000) {
     return new Promise((resolve) => setTimeout(resolve, n));
 }
 
+/**
+ * 
+ * @param {HTMLElement} parent 
+ * @param {number} x 
+ * @param {number} y 
+ * @param {number} [radius]
+ * @returns 
+ */
 function drawCircle(parent, x, y, radius = RADIUS) {
     const fragment = document.createDocumentFragment();
     const circle = document.createElement('div');
@@ -85,7 +107,8 @@ function drawCircle(parent, x, y, radius = RADIUS) {
 
 /**
  * @param {HTMLElement} field
- * @returns {function} Function to translate x and y coordinates into inches
+ * @param {number} desiredWidth
+ * @param {number} desiredHeight
  */
 function createTranslate(field, desiredWidth = 144, desiredHeight = 144) {
     // origin is 0, 0 in the center of the div
@@ -95,6 +118,11 @@ function createTranslate(field, desiredWidth = 144, desiredHeight = 144) {
     const height = fieldElement.height;
 
     return {
+        /**
+         * @param {number} x
+         * @param {number} y
+         * @returns {[number, number]}
+         */
         fromFieldCoords: (x, y) => {
             const remappedX = x + 0.5 * desiredWidth;
             const remappedY = 0.5 * desiredHeight - y;
@@ -102,6 +130,11 @@ function createTranslate(field, desiredWidth = 144, desiredHeight = 144) {
             const expandedY = remappedY / desiredHeight * height;
             return [expandedX, expandedY];
         },
+        /**
+         * @param {number} x 
+         * @param {number} y
+         * @returns {[string, string]}
+         */
         toFieldCoords: (x, y) => {
             const squishedX = x / width * desiredWidth;
             const squishedY = y / height * desiredHeight;
