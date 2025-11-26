@@ -5,6 +5,7 @@ const debugXOriginal = document.getElementById('debug-x-original');
 const debugYOriginal = document.getElementById('debug-y-original');
 const program = document.getElementById('program');
 const translateCoordinates = createTranslate(field);
+const RADIUS = 30;
 const path = [
     [-55, 16.5],
     [-44, 46.5],
@@ -37,18 +38,35 @@ field.addEventListener('mousemove', (e) => {
 })
 
 document.addEventListener('DOMContentLoaded', async () => {
+    updateCode(path);
     for (const [x, y] of path) {
         drawCircle(field, ...translateCoordinates.fromFieldCoords(x, y));
-        program.innerHTML=program.innerHTML + '<br>' + `chassis.moveToPoint(${y}, ${x})`;
         await wait();
     }
 })
+
+field.addEventListener('click', function(e) {
+    const x = e.clientX - (RADIUS / 2);
+    const y = e.clientY - (RADIUS / 2);
+    const [fieldX, fieldY] = translateCoordinates.toFieldCoords(x, y);
+    
+    path.push([fieldX, fieldY]);
+    drawCircle(field, x, y);
+    updateCode(path);
+});
+
+function updateCode(path) {
+    program.innerHTML = '';
+    for (let [x, y] of path) {
+        program.innerHTML = program.innerHTML + '<br>' + `chassis.moveToPoint(${y}, ${x})`;
+    }
+}
 
 async function wait(n = 1000) {
     return new Promise((resolve) => setTimeout(resolve, n));
 }
 
-function drawCircle(parent, x, y, radius = 30) {
+function drawCircle(parent, x, y, radius = RADIUS) {
     const fragment = document.createDocumentFragment();
     const circle = document.createElement('div');
     circle.classList.add('circle');
