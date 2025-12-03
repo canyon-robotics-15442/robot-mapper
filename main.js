@@ -8,6 +8,7 @@
  * @property {number} [maxSpeed]
  * @property {boolean} [forwards]
  */
+const CIRCLE_SELECTOR = '.circle';
 const field = /** @type {HTMLElement} */ (document.getElementById('field'));
 const debugXField = /** @type {HTMLElement} */ (document.getElementById('debug-x-field'));
 const debugYField = /** @type {HTMLElement} */ (document.getElementById('debug-y-field'));
@@ -49,25 +50,31 @@ field.addEventListener('mousemove', (e) => {
 })
 
 document.addEventListener('DOMContentLoaded', async () => {
+    attachCircleListeners();
     updateCode(path);
-    for (const {x, y} of path) {
-        drawCircle(field, ...translateCoordinates.fromFieldCoords(x, y));
+    for (let i = 0; i<path.length; i++) {
+        const {x, y} = path[i];
+        createCircle(field, ...translateCoordinates.fromFieldCoords(x, y), i);
         await wait();
     }
 })
 
-field.addEventListener('click', function(e) {
+field.addEventListener('mouseup', function(e) {
+    if (e.target instanceof HTMLElement && e.target.matches(CIRCLE_SELECTOR)) {
+        console.log('we clicky a circle');
+        return;
+    }
     const x = e.clientX - (RADIUS / 2);
     const y = e.clientY - (RADIUS / 2);
     const [fieldX, fieldY] = translateCoordinates.toFieldCoords(x, y);
-    
+
     path.push({x: parseFloat(fieldX), y: parseFloat(fieldY), timeout: 1000});
-    drawCircle(field, x, y);
+    createCircle(field, x, y, path.length - 1);
     updateCode(path);
 });
 
 /**
- * @param {Point[]} path 
+ * @param {Point[]} path
  */
 function updateCode(path) {
     program.innerHTML = '';
@@ -81,28 +88,88 @@ async function wait(n = 1000) {
 }
 
 /**
- * 
- * @param {HTMLElement} parent 
- * @param {number} x 
- * @param {number} y 
- * @param {number} [radius]
- * @returns 
+ * Draws a circle at x and y then adds event listeners to it for interaction.
+ * @param {HTMLElement} parent
+ * @param {number} x
+ * @param {number} y
+ * @param {number} index
  */
-function drawCircle(parent, x, y, radius = RADIUS) {
-    const fragment = document.createDocumentFragment();
-    const circle = document.createElement('div');
-    circle.classList.add('circle');
+function createCircle(parent, x, y, index) {
+    const circle = drawCircle(parent, x, y, index);
     circle.classList.add('new');
-    circle.style.width = `${radius}px`;
-    circle.style.height = `${radius}px`;
-    circle.style.left = `${x}px`;
-    circle.style.top = `${y}px`;
-    fragment.appendChild(circle);
-    parent.append(fragment);
+    circle.setAttribute('data-index', `${index}`);
     setTimeout(() => {
         circle.classList.remove('new');
     }, 1000)
     return circle;
+}
+
+/**
+ * @param {HTMLElement} parent
+ * @param {number} x
+ * @param {number} y
+ * @param {number} index
+ * @param {number} [radius]
+ * @returns
+ */
+function drawCircle(parent, x, y, index, radius = RADIUS) {
+    const fragment = document.createDocumentFragment();
+    const circle = document.createElement('div');
+    circle.classList.add('circle');
+    circle.style.width = `${radius}px`;
+    circle.style.height = `${radius}px`;
+    circle.style.left = `${x}px`;
+    circle.style.top = `${y}px`;
+    circle.textContent=index.toString();
+    fragment.appendChild(circle);
+    parent.append(fragment);
+    return circle;
+}
+
+function attachCircleListeners() {
+    let dragging = false;
+    /** @type {HTMLElement | null} */
+    let circleElement = null;
+    field.addEventListener('mousedown', (e) => {
+        const element = /** @type {HTMLElement} */ (e.target);
+        if (!element.matches(CIRCLE_SELECTOR)) {
+            return;
+        }
+        element.classList.add('dragging');
+        circleElement = element;
+        dragging = true;
+    });
+    field.addEventListener('mouseup', (e) => {
+        if (!circleElement) {
+            return;
+        }
+        const element = /** @type {HTMLElement} */ (e.target);
+        element.classList.remove('dragging');
+        circleElement = null;
+        dragging = false;
+    });
+    field.addEventListener('mousemove', (e) => {
+        if (!circleElement) {
+            return;
+        }
+        if (!dragging) {
+            return;
+        }
+        const index = circleElement.getAttribute('data-index');
+        const x = e.clientX - RADIUS / 2;
+        const y = e.clientY - RADIUS / 2;
+        circleElement.style.left = `${x}px`;
+        circleElement.style.top = `${y}px`;
+        if (!index) {
+            console.error('wat');
+            return;
+        }
+        const val = path[parseInt(index, 10)];
+        const [ fieldX, fieldY ] = translateCoordinates.toFieldCoords(e.clientX, e.clientY)
+        val.x = parseFloat(fieldX);
+        val.y = parseFloat(fieldY);
+        updateCode(path);
+    })
 }
 
 /**
@@ -131,7 +198,7 @@ function createTranslate(field, desiredWidth = 144, desiredHeight = 144) {
             return [expandedX, expandedY];
         },
         /**
-         * @param {number} x 
+         * @param {number} x
          * @param {number} y
          * @returns {[string, string]}
          */

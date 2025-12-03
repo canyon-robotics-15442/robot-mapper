@@ -64,6 +64,17 @@ main {
     position: absolute;
     background: #ff0000;
     border-radius: 50%;
+    font-size:30px;
+    font-family: Arial, Helvetica, sans-serif;
+    color:white;
+}
+
+#field .circle:hover {
+    cursor: pointer;
+}
+
+#field .circle.dragging {
+    cursor: grabbing;
 }
 
 #field .circle.new {
