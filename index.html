@@ -1,20 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-   <meta charset="UTF-8">
-   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-   <meta http-equiv="X-UA-Compatible" content="ie=edge">
-   <title>My Website</title>
-   <link rel="stylesheet" href="styles.css">
-   <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>My Website</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
 </head>
+
 <body>
-   <main>
+    <main>
         <div id="field"></div>
         <div class="debug">
             <dl>
                 <dt>
-                   Field X: 
+                    Field X:
                 </dt>
                 <dd id="debug-x-field">
                     0
@@ -26,7 +28,7 @@
                     0
                 </dd>
                 <dt>
-                   Original X: 
+                    Original X:
                 </dt>
                 <dd id="debug-x-original">
                     0
@@ -40,7 +42,14 @@
             </dl>
             <div id="program"></div>
         </div>
-   </main>
-   <script src="main.js"></script>
+        <div class="deletion">
+            <label for="circle-index">Circle number:</label>
+
+            <input type="number" id="circle-index" name="circle-index" />
+            <button id="delete-circle">Delete</button>
+        </div>
+    </main>
+    <script src="main.js"></script>
 </body>
+
 </html>
