@@ -15,6 +15,8 @@ const debugYField = /** @type {HTMLElement} */ (document.getElementById('debug-y
 const debugXOriginal = /** @type {HTMLElement} */ (document.getElementById('debug-x-original'));
 const debugYOriginal = /** @type {HTMLElement} */ (document.getElementById('debug-y-original'));
 const program = /** @type {HTMLElement} */ (document.getElementById('program'));
+const deleteButton = /** @type {HTMLElement} */ (document.getElementById('delete-circle'));
+const deleteCircleNumber = /** @type {HTMLInputElement} */ (document.getElementById('circle-index'));
 const translateCoordinates = createTranslate(field);
 const RADIUS = 30;
 /** @type {Point[]} */
@@ -40,9 +42,11 @@ const path = [
     { x: 46.5, y: -60, timeout: 1000 },
     { x: -46, y: -62, timeout: 1000 },
 ];
+/** @type {HTMLElement[]} */
+const circles = [];
 field.addEventListener('mousemove', (e) => {
-    const [ x, y ] = translateCoordinates.toFieldCoords(e.clientX, e.clientY)
-    const [ ogX, ogY ] = translateCoordinates.fromFieldCoords(parseFloat(x), parseFloat(y));
+    const [x, y] = translateCoordinates.toFieldCoords(e.clientX, e.clientY)
+    const [ogX, ogY] = translateCoordinates.fromFieldCoords(parseFloat(x), parseFloat(y));
     debugXField.textContent = x;
     debugYField.textContent = y;
     debugXOriginal.textContent = `${ogX}`;
@@ -52,14 +56,23 @@ field.addEventListener('mousemove', (e) => {
 document.addEventListener('DOMContentLoaded', async () => {
     attachCircleListeners();
     updateCode(path);
-    for (let i = 0; i<path.length; i++) {
-        const {x, y} = path[i];
+    for (let i = 0; i < path.length; i++) {
+        const { x, y } = path[i];
         createCircle(field, ...translateCoordinates.fromFieldCoords(x, y), i);
-        await wait();
     }
 })
 
-field.addEventListener('mouseup', function(e) {
+deleteButton.addEventListener('click', function (e) {
+    const value = parseInt(deleteCircleNumber.value);
+    if (isNaN(value)) {
+        console.log('that is not number idiot')
+        return;
+    }
+    deleteCircle(value);
+
+})
+
+field.addEventListener('mouseup', function (e) {
     if (e.target instanceof HTMLElement && e.target.matches(CIRCLE_SELECTOR)) {
         console.log('we clicky a circle');
         return;
@@ -68,7 +81,7 @@ field.addEventListener('mouseup', function(e) {
     const y = e.clientY - (RADIUS / 2);
     const [fieldX, fieldY] = translateCoordinates.toFieldCoords(x, y);
 
-    path.push({x: parseFloat(fieldX), y: parseFloat(fieldY), timeout: 1000});
+    path.push({ x: parseFloat(fieldX), y: parseFloat(fieldY), timeout: 1000 });
     createCircle(field, x, y, path.length - 1);
     updateCode(path);
 });
@@ -78,8 +91,24 @@ field.addEventListener('mouseup', function(e) {
  */
 function updateCode(path) {
     program.innerHTML = '';
-    for (let {x, y, timeout} of path) {
+    for (let { x, y, timeout } of path) {
         program.innerHTML = program.innerHTML + '<br>' + `chassis.moveToPoint(${y}, ${x}, ${timeout});`;
+    }
+}
+
+/**
+ * @param {number} index
+ */
+function deleteCircle(index) {
+    path.splice(index, 1);
+    const removedCircle = circles.splice(index, 1);
+    if (removedCircle[0] !== undefined) {
+        removedCircle[0].remove();
+        updateCode(path);
+        for (let i = 0; i < circles.length; i++) {
+            circles[i].setAttribute('data-index', i.toString());
+            circles[i].textContent = i.toString();
+        }
     }
 }
 
@@ -101,6 +130,7 @@ function createCircle(parent, x, y, index) {
     setTimeout(() => {
         circle.classList.remove('new');
     }, 1000)
+    circles.push(circle);
     return circle;
 }
 
@@ -120,7 +150,7 @@ function drawCircle(parent, x, y, index, radius = RADIUS) {
     circle.style.height = `${radius}px`;
     circle.style.left = `${x}px`;
     circle.style.top = `${y}px`;
-    circle.textContent=index.toString();
+    circle.textContent = index.toString();
     fragment.appendChild(circle);
     parent.append(fragment);
     return circle;
@@ -165,7 +195,7 @@ function attachCircleListeners() {
             return;
         }
         const val = path[parseInt(index, 10)];
-        const [ fieldX, fieldY ] = translateCoordinates.toFieldCoords(e.clientX, e.clientY)
+        const [fieldX, fieldY] = translateCoordinates.toFieldCoords(e.clientX, e.clientY)
         val.x = parseFloat(fieldX);
         val.y = parseFloat(fieldY);
         updateCode(path);
