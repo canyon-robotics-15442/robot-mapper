@@ -44,6 +44,8 @@ const path = [
 ];
 /** @type {HTMLElement[]} */
 const circles = [];
+/** @type {any[]} */
+const lines = [];
 field.addEventListener('mousemove', (e) => {
     const [x, y] = translateCoordinates.toFieldCoords(e.clientX, e.clientY)
     const [ogX, ogY] = translateCoordinates.fromFieldCoords(parseFloat(x), parseFloat(y));
@@ -110,6 +112,12 @@ function deleteCircle(index) {
             circles[i].textContent = i.toString();
         }
     }
+    const removedLine = lines.splice(index, 1);
+    removedLine[0].remove();
+    if (index > 0) {
+        const adjustedLine = lines[index - 1];
+        adjustedLine.end = circles[index];
+    }
 }
 
 async function wait(n = 1000) {
@@ -124,6 +132,7 @@ async function wait(n = 1000) {
  * @param {number} index
  */
 function createCircle(parent, x, y, index) {
+    const previousCircle = circles[circles.length - 1];
     const circle = drawCircle(parent, x, y, index);
     circle.classList.add('new');
     circle.setAttribute('data-index', `${index}`);
@@ -131,6 +140,10 @@ function createCircle(parent, x, y, index) {
         circle.classList.remove('new');
     }, 1000)
     circles.push(circle);
+    if (previousCircle) {
+        // @ts-ignore
+        lines.push(new LeaderLine(previousCircle, circle));
+    }
     return circle;
 }
 
@@ -154,6 +167,7 @@ function drawCircle(parent, x, y, index, radius = RADIUS) {
     fragment.appendChild(circle);
     parent.append(fragment);
     return circle;
+
 }
 
 function attachCircleListeners() {
@@ -185,19 +199,24 @@ function attachCircleListeners() {
         if (!dragging) {
             return;
         }
-        const index = circleElement.getAttribute('data-index');
+        const indexString = circleElement.getAttribute('data-index');
         const x = e.clientX - RADIUS / 2;
         const y = e.clientY - RADIUS / 2;
         circleElement.style.left = `${x}px`;
         circleElement.style.top = `${y}px`;
-        if (!index) {
+        if (!indexString) {
             console.error('wat');
             return;
         }
-        const val = path[parseInt(index, 10)];
+        const index = parseInt(indexString, 10);
+        const val = path[index];
         const [fieldX, fieldY] = translateCoordinates.toFieldCoords(e.clientX, e.clientY)
         val.x = parseFloat(fieldX);
         val.y = parseFloat(fieldY);
+        if (index > 0) {
+            lines[index - 1].position();
+        }
+        lines[index].position();
         updateCode(path);
     })
 }
