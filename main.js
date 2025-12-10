@@ -11,50 +11,61 @@
  * @property {Attributes} [attributes]
  */
 
+// From https://github.com/canyon-robotics-15442/Team_B/blob/main/include/lemlib/chassis/chassis.hpp#L313-L324
+// struct MoveToPointParams {
+//     /** whether the robot should move forwards or backwards. True by default */
+//     bool forwards = true;
+//     /** the maximum speed the robot can travel at. Value between 0-127. 127 by default */
+//     float maxSpeed = 127;
+//     /** the minimum speed the robot can travel at. If set to a non-zero value, the exit conditions will switch to
+//      * less accurate but smoother ones. Value between 0-127. 0 by default */
+//     float minSpeed = 0;
+//     /** distance between the robot and target point where the movement will exit. Only has an effect if minSpeed is
+//      * non-zero.*/
+//     float earlyExitRange = 0;
+// };
+
 /**
  * @typedef {object} Attributes
  * @property {number} [maxSpeed]
+ * @property {number} [minSpeed]
  * @property {boolean} [forwards]
+ * @property {number} [earlyExitRange]
  */
 const CIRCLE_SELECTOR = '.circle';
 const field = /** @type {HTMLElement} */ (document.getElementById('field'));
-const debugXField = /** @type {HTMLElement} */ (document.getElementById('debug-x-field'));
-const debugYField = /** @type {HTMLElement} */ (document.getElementById('debug-y-field'));
-const debugXOriginal = /** @type {HTMLElement} */ (document.getElementById('debug-x-original'));
-const debugYOriginal = /** @type {HTMLElement} */ (document.getElementById('debug-y-original'));
 const program = /** @type {HTMLElement} */ (document.getElementById('program'));
-const deleteCircleNumber = /** @type {HTMLInputElement} */ (document.getElementById('circle-index'));
+const exportDialog = /** @type {HTMLDialogElement} */ (document.querySelector('dialog#export-dialog'));
+const importDialog = /** @type {HTMLDialogElement} */ (document.querySelector('dialog#import-dialog'));
+const codeSnippet = /** @type {HTMLPreElement} */ (document.querySelector('pre#code-snippet'));
+const exportCodeButton = /** @type {HTMLButtonElement} */ (document.querySelector('button#code-export'));
+const importCodeButton = /** @type {HTMLButtonElement} */ (document.querySelector('button#code-import'));
+const copyCodeButton = /** @type {HTMLButtonElement} */ (document.querySelector('button#code-copy'));
+const importCodeTrigger = /** @type {HTMLButtonElement} */ (document.querySelector('button#code-import-button'));
+const importCodeTextArea = /** @type {HTMLTextAreaElement} */ (document.querySelector('textarea#code-import-text'));
+const shareButton = /** @type {HTMLTextAreaElement} */ (document.querySelector('button#share'));
 const translateCoordinates = createTranslate(field);
 const RADIUS = 30;
 /** @type {Point[]} */
-const path = [
-    { x: -55, y: 16.5, timeout: 1000 },
-    { x: -44, y: 46.5, timeout: 1000 },
-    { x: -72, y: 48.2, timeout: 1000 },
-    { x: -46.5, y: 48.2, timeout: 1000 },
-    { x: -46.5, y: 60, timeout: 1000 },
-    { x: 46, y: 62, timeout: 1000 },
-    { x: 50, y: 48, timeout: 1000 },
-    { x: 32, y: 48, timeout: 1000 },
-    { x: 24, y: 48, timeout: 1000 },
-    { x: 40, y: 48, timeout: 1000 },
-    { x: 72, y: 48.4, timeout: 1000 },
-    { x: 48, y: 48.4, timeout: 1000 },
-    { x: 32, y: 48, timeout: 1000 },
-    { x: 24, y: 48, timeout: 1000 },
-    { x: 38, y: 48, timeout: 1000 },
-    { x: 38, y: -46, timeout: 1000 },
-    { x: 72, y: -47.3, timeout: 1000 },
-    { x: 45, y: -47.3, timeout: 1000 },
-    { x: 46.5, y: -60, timeout: 1000 },
-    { x: -46, y: -62, timeout: 1000 },
-];
+let path = [];
 /** @type {HTMLElement[]} */
 const circles = [];
 /** @type {any[]} */
 const lines = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
+    const url = new URL(location.href);
+    const params = url.searchParams;
+    const p = params.get('p');
+    if (p) {
+        const decoded = atob(decodeURIComponent(p));
+        const json = JSON.parse(decoded);
+        if (json.path) {
+            path = json.path;
+        }
+        params.delete('p');
+        window.history.replaceState({}, '', url.toString());
+    }
     attachCircleListeners();
     generatePointsUi(path);
     for (let i = 0; i < path.length; i++) {
@@ -78,16 +89,137 @@ field.addEventListener('mouseup', function (e) {
     program.appendChild(generatePointElement(point, path.length));
 });
 
+shareButton.addEventListener('click', async (e) => {
+    const p = encodeURIComponent(btoa(JSON.stringify({ v: 0, path })));
+    const sharedUrl = new URL(location.href);
+    sharedUrl.searchParams.append('p', p);
+    await navigator.clipboard.writeText(sharedUrl.toString());
+});
+
+exportCodeButton.addEventListener('click', (e) => {
+    updateCode(path);
+    exportDialog.showModal();
+});
+
+importCodeButton.addEventListener('click', (e) => {
+    importDialog.showModal();
+});
+
+copyCodeButton.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const text = codeSnippet.textContent;
+    await navigator.clipboard.writeText(text);
+    exportDialog.querySelector('.copy-toast')?.classList.add('show');
+    await wait(3000);
+    exportDialog.querySelector('.copy-toast')?.classList.remove('show');
+});
+
+importCodeTrigger.addEventListener('click', (e) => {
+    const codeTextArea = /** @type {HTMLTextAreaElement} */ (document.querySelector('#code-import-text'));
+    const code = codeTextArea?.value;
+    if (!code) {
+        return;
+    }
+    const outPath = [];
+    /** @type {any} */
+    let point = {};
+    for (const line of code.split('\n')) {
+        const startPose = line.match(/\w+\.setPose\(\s*(?<y>-?\d+(\.\d+)?),\s*(?<x>-?\d+(\.\d+)?),\s*(?<radians>-?\d+(\.\d+)?)\s*\);?/);
+
+        if (startPose) {
+            console.log('found pose', startPose)
+            point.x = parseFloat(startPose.groups?.x ?? '');
+            point.y = parseFloat(startPose.groups?.y ?? '');
+            point.radians = parseFloat(startPose.groups?.radians ?? '');
+            outPath.push(point);
+            point = {};
+            continue;
+        }
+
+        const match = line.match(/(\w+\.moveToPoint\((?<y>-?\d+(\.\d+)?),\s*(?<x>-?\d+(\.\d+)?),\s*(?<timeout>-?\d+(\.\d+)?),?\s*(?<attributes>{.+})?\s*\);?)/i);
+        if (match) {
+            point.x = parseFloat(match.groups?.x ?? '');
+            point.y = parseFloat(match.groups?.y ?? '');
+            point.timeout = parseFloat(match.groups?.timeout ?? '');
+
+            if (match.groups?.attributes) {
+                point.attributes = {};
+                const attributes = match.groups.attributes.slice(1, -1).trim().split(/,\s*/g);
+                for (const a of attributes) {
+                    const [key, value] = a.split(/\s*=\s*/);
+                    if (!key.startsWith('.')) {
+                        throw new Error(`${key} does not start with .`);
+                    }
+                    // @ts-ignore
+                    const keyWithoutDot = key.slice(1);
+                    if (value === 'true') {
+                        point.attributes[keyWithoutDot] = true;
+                    } else if (value === 'false') {
+                        point.attributes[keyWithoutDot] = false;
+                    } else {
+                        point.attributes[keyWithoutDot] = parseFloat(value);
+                    }
+                }
+            }
+            outPath.push(point);
+            point = {};
+        } else {
+            point.codeBefore = (point.codeBefore ?? '') + line.trim() + '\n';
+        }
+    }
+    if (point.codeBefore) {
+        outPath[outPath.length - 1].codeAfter = point.codeBefore;
+    }
+    path = outPath;
+    field.replaceChildren();
+    for (const l of lines) {
+        l.remove();
+    }
+    lines.length = 0;
+    circles.length = 0;
+    generatePointsUi(outPath);
+    for (let i = 0; i < outPath.length; i++) {
+        const { x, y } = outPath[i];
+        createCircle(field, ...translateCoordinates.fromFieldCoords(x, y), i);
+    }
+    importDialog.close();
+});
+
 /**
  * @param {Point[]} path
  */
 function updateCode(path) {
-    program.innerHTML = '';
     const [firstPosition, ...rest] = path;
-    program.innerHTML = `chassis.setPose(${firstPosition.y}, ${firstPosition.x}, ${firstPosition.radians ?? 0})`;
-    for (let { x, y, timeout } of rest) {
-        program.innerHTML = program.innerHTML + `\nchassis.moveToPoint(${y}, ${x}, ${timeout});`;
+    const output = [];
+    if (firstPosition.codeBefore) {
+        output.push(firstPosition.codeBefore.trim());
     }
+    output.push(`chassis.setPose(${firstPosition.y}, ${firstPosition.x}, ${firstPosition.radians ?? 0})`);
+    if (firstPosition.codeAfter) {
+        output.push(firstPosition.codeAfter.trim());
+    }
+    for (let { x, y, attributes, timeout, codeBefore, codeAfter } of rest) {
+        if (codeBefore) {
+            output.push(codeBefore.trim());
+        }
+        let attrs = '';
+        const entries = Object.entries(attributes ?? {});
+        if (entries.length > 0) {
+            attrs += '{ ';
+        }
+        for (const [key, value] of entries) {
+            attrs += `.${key} = ${value}, `
+        }
+        if (entries.length > 0) {
+            attrs = attrs.substring(0, attrs.length - 2);
+            attrs += ' }';
+        }
+        output.push(`chassis.moveToPoint(${y}, ${x}, ${timeout}${attrs ? ', ' + attrs : ''});`);
+        if (codeAfter) {
+            output.push(codeAfter.trim());
+        }
+    }
+    codeSnippet.innerHTML = output.join('\n');
 }
 
 /**
@@ -95,6 +227,7 @@ function updateCode(path) {
  * @param {Point[]} path 
  */
 function generatePointsUi(path) {
+    program.replaceChildren();
     const fragment = document.createDocumentFragment();
     for (let i = 0; i < path.length; i++) {
         fragment.appendChild(generatePointElement(path[i], i));
@@ -113,8 +246,8 @@ function generatePointElement(point, index) {
     const div = document.createElement('div');
     div.classList.add("points-ui-wrapper");
     const html = `
-        <div class="point-ui" data-index="${index}">
-            <h3 class="point-ui-title">Step: ${index}</h3>
+        <details class="point-ui" data-index="${index}">
+            <summary class="point-ui-title">Step: ${index}</summary>
             <div class="point-ui-form">
                 <label class="point-ui-label" for="${id}-x">X:</label>
                 <input id="${id}-x" data-attribute="x" type="input" value="${point.x}" />
@@ -124,9 +257,23 @@ function generatePointElement(point, index) {
                 <input id="${id}-timeout" data-attribute="timeout" type="input" value="${point.timeout ?? ''}" />
                 <label class="point-ui-label" for="${id}-radians">Radians:</label>
                 <input id="${id}-radians" data-attribute="radians" type="input" value="${point.radians ?? ''}" />
+                <div class="point-ui-attributes">
+                    <label class="point-ui-attribute-label" for="${id}-attributes-max-speed">Max Speed:</label>
+                    <input id="${id}-attributes-max-speed" data-attribute="attributes.maxSpeed" type="input" value="${point.attributes?.maxSpeed ?? ''}" />
+                    <label class="point-ui-attribute-label" for="${id}-attributes-min-speed">Min Speed:</label>
+                    <input id="${id}-attributes-min-speed" type="input" data-attribute="attributes.minSpeed" value="${point.attributes?.minSpeed ?? ''}" />
+                    <label class="point-ui-attribute-label" for="${id}-attributes-early-exit-range">Early Exit Range:</label>
+                    <input id="${id}-attributes-early-exit-range" data-attribute="attributes.earlyExitRange" type="input" value="${point.attributes?.earlyExitRange ?? ''}" />
+                    <label class="point-ui-attribute-label" for="${id}-attributes-forwards">Forwards?:</label>
+                    <input id="${id}-attributes-forwards" type="checkbox" data-attribute="attributes.forwards" ${point.attributes?.forwards ? "checked" : ""} />
+                </div>
+                <label class="point-ui-label" for="${id}-before-code">Before code:</label>
+                <textarea id="${id}-before-code" data-attribute="codeBefore">${point.codeBefore ?? ''}</textarea>
+                <label class="point-ui-label" for="${id}-after-code">After code:</label>
+                <textarea id="${id}-after-code" data-attribute="codeAfter">${point.codeAfter ?? ''}</textarea>
                 <button class="point-ui-delete">X</button>
             </div>
-        </div>
+        </details>
     `
     div.innerHTML = html;
     div.addEventListener('click', (e) => {
@@ -139,9 +286,27 @@ function generatePointElement(point, index) {
     });
     div.addEventListener('change', (e) => {
         const target = /** @type {HTMLInputElement} */ (e.target);
-        if (target.matches('input')) {
-            const property = /** @type {string} */ (target.getAttribute('data-attribute'));
-            updateCircle(index, property, parseFloat(target.value));
+        const property = /** @type {string} */ (target.getAttribute('data-attribute'));
+        if (!property) {
+            console.warn("No property attribute found")
+            return;
+        }
+        if (property === 'x' || property === 'y') {
+            const value = parseFloat(target.value);
+            // @ts-ignore
+            path[index][property] = value;
+            updateCircle(index, property, value);
+        }
+        else if (property.startsWith('attributes.')) {
+            const subProperty = property.split('.')[1];
+            /** @type {Record<string, unknown>} */
+            const attributes = path[index].attributes ?? {};
+            attributes[subProperty] = subProperty === 'forwards' ? target.checked : parseFloat(target.value);
+            path[index].attributes = /** @type {Attributes} */ (attributes);
+        }
+        else {
+            // @ts-ignore
+            path[index][property] = target.value;
         }
     })
     return div;
@@ -217,22 +382,24 @@ function deleteCircle(index) {
 /**
  * @param {number} index 
  * @param {string} property 
- * @param {number} value
+ * @param {string|number} value
  */
 function updateCircle(index, property, value) {
     console.log('updating', property)
     const circle = circles[index];
     if (property == 'x') {
-        const [fieldX] = translateCoordinates.fromFieldCoords(value, 0);
+        const [fieldX] = translateCoordinates.fromFieldCoords(/** @type {number} */(value), 0);
         circle.style.left = `${fieldX}px`;
     } else if (property === 'y') {
-        const [_, fieldY] = translateCoordinates.fromFieldCoords(0, value);
+        const [_, fieldY] = translateCoordinates.fromFieldCoords(0, /** @type {number} */(value));
         circle.style.top = `${fieldY}px`;
     }
     if (index > 0) {
         lines[index - 1].position();
     }
-    lines[index].position();
+    if (lines[index]) {
+        lines[index].position();
+    }
 }
 
 async function wait(n = 1000) {
@@ -330,7 +497,9 @@ function attachCircleListeners() {
         if (index > 0) {
             lines[index - 1].position();
         }
-        lines[index].position();
+        if (lines[index]) {
+            lines[index].position();
+        }
         updatePointElement(val, index, 'x', 'y')
     })
 }

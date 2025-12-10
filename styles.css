@@ -48,8 +48,10 @@ table {
 }
 
 main {
-    display: flex;
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: 3fr 1fr 2fr;
+    grid-template-rows: minmax(0, 1fr);
+    max-height: 100vh;
 }
 
 #field {
@@ -83,11 +85,139 @@ main {
     background: #0400ff;
 }
 
+.controls {
+    display: flex;
+    flex-direction: column;
+    padding: 15px;
+
+    button {
+        padding: 5px;
+    }
+
+    button + button {
+        margin-top: 10px;
+    }
+}
+
 .debug {
-    margin-left: 50px;
-    flex-shrink: 1;
+    overflow: auto;
+}
+
+.point-ui {
+    background-color: #ccc;
+    padding: 5px;
+    margin-bottom: 10px;
+}
+
+.point-ui-title {
+    font-size: 1.2rem;
+    margin-bottom: 5px;
 }
 
 .point-ui-form {
-    display: flex;
+    display: grid;
+    grid-template-areas:
+        "label-x x label-y y delete"
+        "label-timeout timeout label-radians radians delete"
+        "attributes attributes attributes attributes attributes"
+        "label-before-code label-before-code . . ."
+        "before-code before-code before-code before-code before-code"
+        "label-after-code label-after-code . . ."
+        "after-code after-code after-code after-code after-code";
+    grid-gap: 5px 10px;
+
+    label.point-ui-label:nth-of-type(1) {
+        grid-area: label-x;
+    }
+
+    label.point-ui-label:nth-of-type(2) {
+        grid-area: label-y;
+    }
+
+    label.point-ui-label:nth-of-type(3) {
+        grid-area: label-timeout;
+    }
+
+    label.point-ui-label:nth-of-type(4) {
+        grid-area: label-radians;
+    }
+
+    label.point-ui-label:nth-of-type(5) {
+        grid-area: label-before-code;
+    }
+
+    label.point-ui-label:nth-of-type(6) {
+        grid-area: label-after-code;
+    }
+
+    input[data-attribute="x"] {
+        grid-area: x;
+    }
+
+    input[data-attribute="y"] {
+        grid-area: y;
+    }
+
+    input[data-attribute="timeout"] {
+        grid-area: timeout;
+    }
+
+    input[data-attribute="radians"] {
+        grid-area: radians;
+    }
+
+    [data-attribute="codeBefore"] {
+        grid-area: before-code;
+    }
+
+    [data-attribute="codeAfter"] {
+        grid-area: after-code;
+    }
+
+    .point-ui-attributes {
+        grid-area: attributes;
+    }
+
+    .point-ui-delete {
+        grid-area: delete;
+    }
 }
+
+.point-ui-attributes {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-gap: 5px 10px;
+    padding: 10px 5px;
+    background: #aaa;
+
+    h3 {
+        font-weight: 900;
+    }
+}
+
+dialog[open] {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+
+    #code-copy {
+        margin-top: 20px;
+    }
+
+    .copy-toast {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        opacity: 0;
+    }
+
+    .copy-toast.show {
+        opacity: 1;
+    }
+
+    #code-import-text {
+        height: 800px;
+        width: 800px;
+    }
+}
+

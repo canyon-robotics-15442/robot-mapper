@@ -13,10 +13,24 @@
 <body>
     <main>
         <div id="field"></div>
+        <div class="controls">
+            <button id="code-import">Import Code</button>
+            <button id="code-export">Export Code</button>
+            <button id="share">Share</button>
+        </div>
         <div class="debug">
             <div id="program"></div>
         </div>
     </main>
+    <dialog id="export-dialog" closedby="any">
+        <pre id="code-snippet"></pre>
+        <button id="code-copy">Copy</button>
+        <p class="copy-toast">Copied!</p>
+    </dialog>
+    <dialog id="import-dialog" closedby="any">
+        <textarea id="code-import-text"></textarea>
+        <button id="code-import-button">Import</button>
+    </dialog>
     <script src="main.js"></script>
     <script src="leader-line.min.js"></script>
 </body>
